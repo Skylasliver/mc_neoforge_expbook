@@ -1,0 +1,27 @@
+package dev.skylasliver.expbook.network;
+
+import dev.skylasliver.expbook.ExperienceBookMod;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+
+@EventBusSubscriber(modid = ExperienceBookMod.MOD_ID, bus = EventBusSubscriber.Bus.MOD)
+public final class ModNetwork {
+
+    private ModNetwork() {
+    }
+
+    @SubscribeEvent
+    public static void register(RegisterPayloadHandlersEvent event) {
+        PayloadRegistrar registrar = event.registrar("2");
+        registrar.playToServer(
+                TakeLevelPayload.TYPE,
+                TakeLevelPayload.STREAM_CODEC,
+                TakeLevelPayload::handle);
+        registrar.playToServer(
+                OpenBookPayload.TYPE,
+                OpenBookPayload.STREAM_CODEC,
+                OpenBookPayload::handle);
+    }
+}

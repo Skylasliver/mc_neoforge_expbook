@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " D ",
+    "DPD",
+    " D "
+  ],
+  "key": {
+    "D": {
+      "item": "minecraft:diamond"
+    },
+    "P": {
+      "item": "skylasliver_expbook:gold_page"
+    }
+  },
+  "result": {
+    "id": "skylasliver_expbook:diamond_page",
+    "count": 1
+  }
+}

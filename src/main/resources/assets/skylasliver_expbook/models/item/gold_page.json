@@ -1,0 +1,6 @@
+{
+  "parent": "skylasliver_expbook:item/page_handheld",
+  "textures": {
+    "layer0": "skylasliver_expbook:item/gold_page"
+  }
+}

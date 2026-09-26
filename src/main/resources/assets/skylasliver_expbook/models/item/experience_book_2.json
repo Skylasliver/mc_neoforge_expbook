@@ -1,0 +1,8 @@
+{
+  "parent": "skylasliver_expbook:item/experience_book_geom",
+  "textures": {
+    "0": "skylasliver_expbook:item/experience_book_model_2",
+    "particle": "skylasliver_expbook:item/experience_book_model_2"
+  }
+}
+

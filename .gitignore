@@ -3,4 +3,5 @@ build/
 run/
 run-*/
 logs/
-.modmind/
+.idea/
+*.iml

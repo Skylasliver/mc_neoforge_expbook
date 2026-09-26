@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " G ",
+    "GPG",
+    " G "
+  ],
+  "key": {
+    "G": {
+      "item": "minecraft:gold_ingot"
+    },
+    "P": {
+      "item": "skylasliver_expbook:leather_page"
+    }
+  },
+  "result": {
+    "id": "skylasliver_expbook:gold_page",
+    "count": 1
+  }
+}
