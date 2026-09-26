@@ -15,25 +15,31 @@ import net.minecraft.world.item.Item;
  * which is exactly what keeps page items safely stackable.
  */
 public enum PageTier implements StringRepresentable {
-    LEATHER("leather", 500, () -> ModItems.LEATHER_PAGE.get()),
-    GOLD("gold", 2000, () -> ModItems.GOLD_PAGE.get()),
-    DIAMOND("diamond", 5000, () -> ModItems.DIAMOND_PAGE.get()),
-    NETHERITE("netherite", 20000, () -> ModItems.NETHERITE_PAGE.get()),
-    NETHER_STAR("nether_star", 100000, () -> ModItems.NETHER_STAR_PAGE.get());
+    LEATHER("leather", () -> ModItems.LEATHER_PAGE.get()),
+    GOLD("gold", () -> ModItems.GOLD_PAGE.get()),
+    DIAMOND("diamond", () -> ModItems.DIAMOND_PAGE.get()),
+    NETHERITE("netherite", () -> ModItems.NETHERITE_PAGE.get()),
+    NETHER_STAR("nether_star", () -> ModItems.NETHER_STAR_PAGE.get());
 
     public static final Codec<PageTier> CODEC = StringRepresentable.fromEnum(PageTier::values);
 
     /** Ordinal-based wire form; the enum order is part of the save format. */
     public static final StreamCodec<ByteBuf, PageTier> STREAM_CODEC =
-            ByteBufCodecs.VAR_INT.map(ordinal -> values()[ordinal], PageTier::ordinal);
+            ByteBufCodecs.VAR_INT.map(PageTier::fromOrdinal, PageTier::ordinal);
+
+    private static PageTier fromOrdinal(int ordinal) {
+        PageTier[] tiers = values();
+        if (ordinal < 0 || ordinal >= tiers.length) {
+            throw new IllegalArgumentException("Invalid page tier ordinal: " + ordinal);
+        }
+        return tiers[ordinal];
+    }
 
     private final String id;
-    private final int points;
     private final Supplier<Item> item;
 
-    PageTier(String id, int points, Supplier<Item> item) {
+    PageTier(String id, Supplier<Item> item) {
         this.id = id;
-        this.points = points;
         this.item = item;
     }
 
@@ -61,12 +67,4 @@ public enum PageTier implements StringRepresentable {
         return Component.translatable("item.skylasliver_expbook." + this.id + "_page");
     }
 
-    public static PageTier byId(String id) {
-        for (PageTier tier : values()) {
-            if (tier.id.equals(id)) {
-                return tier;
-            }
-        }
-        return null;
-    }
 }

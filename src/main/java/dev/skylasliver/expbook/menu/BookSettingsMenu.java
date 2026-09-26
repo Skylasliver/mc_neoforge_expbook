@@ -60,12 +60,17 @@ public final class BookSettingsMenu extends AbstractContainerMenu {
             book.set(ModComponents.TARGET_LEVEL.get(), Math.clamp(BookAutomation.target(book) + delta, 0, BookConfig.MAX_TARGET.get()));
         } else return false;
         player.getInventory().setChanged();
+        if (player instanceof net.minecraft.server.level.ServerPlayer server)
+            dev.skylasliver.expbook.util.BookIdentity.recordIfBound(server, book);
         broadcastChanges();
         return true;
     }
     @Override
     public boolean stillValid(Player player) {
-        return player.isAlive() && BookLocator.held(player) == book;
+        return player.isAlive() && !book.isEmpty()
+                && (!(player instanceof net.minecraft.server.level.ServerPlayer server)
+                    || dev.skylasliver.expbook.util.BookIdentity.isUsable(server, book))
+                && BookLocator.held(player) == book;
     }
     @Override
     public ItemStack quickMoveStack(Player player, int index) { return ItemStack.EMPTY; }

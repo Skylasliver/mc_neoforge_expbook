@@ -1,6 +1,7 @@
 package dev.skylasliver.expbook.registry;
 
 import com.mojang.serialization.Codec;
+import java.util.UUID;
 import dev.skylasliver.expbook.ExperienceBookMod;
 import dev.skylasliver.expbook.component.BookContents;
 import net.minecraft.core.component.DataComponentType;
@@ -27,6 +28,31 @@ public final class ModComponents {
             COMPONENTS.register("fill_level", () -> DataComponentType.<Integer>builder()
                     .persistent(Codec.INT)
                     .networkSynchronized(ByteBufCodecs.VAR_INT)
+                    .build());
+
+    /** Player-facing sequential ID; the UUID below remains the legacy identity key. */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Long>> BOOK_NUMBER =
+            COMPONENTS.register("book_number", () -> DataComponentType.<Long>builder()
+                    .persistent(Codec.LONG)
+                    .networkSynchronized(ByteBufCodecs.VAR_LONG)
+                    .build());
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<UUID>> BOOK_ID =
+            COMPONENTS.register("book_id", () -> DataComponentType.<UUID>builder()
+                    .persistent(Codec.STRING.xmap(UUID::fromString, UUID::toString))
+                    .networkSynchronized(ByteBufCodecs.STRING_UTF8.map(UUID::fromString, UUID::toString))
+                    .build());
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<UUID>> OWNER_UUID =
+            COMPONENTS.register("owner_uuid", () -> DataComponentType.<UUID>builder()
+                    .persistent(Codec.STRING.xmap(UUID::fromString, UUID::toString))
+                    .networkSynchronized(ByteBufCodecs.STRING_UTF8.map(UUID::fromString, UUID::toString))
+                    .build());
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<String>> OWNER_NAME =
+            COMPONENTS.register("owner_name", () -> DataComponentType.<String>builder()
+                    .persistent(Codec.STRING)
+                    .networkSynchronized(ByteBufCodecs.STRING_UTF8)
                     .build());
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> AUTOMATION =

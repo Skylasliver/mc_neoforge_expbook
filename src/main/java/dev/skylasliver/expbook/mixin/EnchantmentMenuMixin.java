@@ -43,15 +43,16 @@ public abstract class EnchantmentMenuMixin {
         if (book.isEmpty()) {
             return;
         }
+        if (player instanceof net.minecraft.server.level.ServerPlayer server
+                && dev.skylasliver.expbook.util.BookIdentity.ensureBound(server, book) == null) return;
         EXPBOOK_STASH.put(player.getUUID(), new expbook$Stash(
                 player.totalExperience,
                 player.experienceLevel,
                 player.experienceProgress,
                 bookPoints, book, ExperienceMath.totalPointsForLevel(((EnchantmentMenu)(Object)this).costs[id])));
-        long merged = bookPoints;
-        player.totalExperience = (int) Math.min(Integer.MAX_VALUE, merged);
-        player.experienceLevel = ExperienceMath.levelForPoints(merged);
-        player.experienceProgress = ExperienceMath.progress(merged);
+        player.totalExperience = bookPoints;
+        player.experienceLevel = ExperienceMath.levelForPoints(bookPoints);
+        player.experienceProgress = ExperienceMath.progress(bookPoints);
     }
 
     @Inject(method = "clickMenuButton", at = @At("RETURN"))
@@ -60,21 +61,19 @@ public abstract class EnchantmentMenuMixin {
         if (stash == null) {
             return;
         }
+        player.totalExperience = stash.total();
+        player.experienceLevel = stash.level();
+        player.experienceProgress = stash.progress();
         if (!expbook$performed || player.level().isClientSide() || player.getAbilities().instabuild
                 || cir.getReturnValue() == null || !cir.getReturnValue()) {
             // Client checks never charge XP; the server settles and syncs the result.
             // Each menu owns its stash so integrated client/server calls cannot race.
-            player.totalExperience = stash.total();
-            player.experienceLevel = stash.level();
-            player.experienceProgress = stash.progress();
             return;
         }
 
-        player.totalExperience = stash.total();
-        player.experienceLevel = stash.level();
-        player.experienceProgress = stash.progress();
         ExperienceBookItem.setContents(stash.book(), ExperienceBookItem.contents(stash.book())
                 .withStoredPoints(stash.bookPoints() - stash.cost()));
+        dev.skylasliver.expbook.util.BookIdentity.recordIfBound((net.minecraft.server.level.ServerPlayer) player, stash.book());
     }
     /** Held-book-only payment using the displayed cumulative level cost. */
     @Unique

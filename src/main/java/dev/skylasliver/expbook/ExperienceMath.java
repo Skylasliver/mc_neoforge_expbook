@@ -79,8 +79,8 @@ public final class ExperienceMath {
     }
 
     /**
-     * Points that complete the current level. "Take one level" withdraws that much,
-     * and "store one level" deposits that much; both include the partial progress.
+     * Points that complete the current level. "Take one level" withdraws that much;
+     * deposits instead return the player to the previous level's floor.
      */
     public static int pointsToCompleteCurrentLevel(long points) {
         int level = levelForPoints(points);

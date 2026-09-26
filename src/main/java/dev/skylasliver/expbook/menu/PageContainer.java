@@ -24,19 +24,23 @@ public class PageContainer extends SimpleContainer {
     public ItemStack book() { return book; }
 
     public boolean canReplace(int slot, ItemStack replacement) {
+        if (slot < 0 || slot >= getContainerSize() || book.isEmpty()) return false;
         if (!replacement.isEmpty() && !(replacement.getItem() instanceof PageItem)) return false;
         long capacity = 0;
         for (int i = 0; i < getContainerSize(); i++) {
             ItemStack item = i == slot ? replacement : getItem(i);
             if (item.getItem() instanceof PageItem page) capacity += page.tier().points();
         }
-        return capacity >= ExperienceBookItem.storedPoints(book);
+        var contents = ExperienceBookItem.contents(book);
+        // A capacity reduction in server config must not prevent gradually adding pages.
+        // Preserve an existing overflow, but never allow a transaction to make it worse.
+        return capacity >= Math.min(contents.storedPoints(), contents.capacity());
     }
 
     @Override
     public void setChanged() {
         super.setChanged();
-        if (loading) return;
+        if (loading || book.isEmpty()) return;
         var pages = new ArrayList<PageTier>();
         for (int i = 0; i < getContainerSize(); i++) {
             if (getItem(i).getItem() instanceof PageItem page) pages.add(page.tier());

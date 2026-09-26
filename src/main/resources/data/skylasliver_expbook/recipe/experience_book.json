@@ -2,11 +2,14 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "pattern": [
-    "OLO",
+    "OEO",
     "LBL",
     "OLO"
   ],
   "key": {
+    "E": {
+      "item": "minecraft:ender_pearl"
+    },
     "O": {
       "item": "minecraft:obsidian"
     },

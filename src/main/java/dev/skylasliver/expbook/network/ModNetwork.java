@@ -14,7 +14,8 @@ public final class ModNetwork {
 
     @SubscribeEvent
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("2");
+        PayloadRegistrar registrar = event.registrar("3");
+        registrar.playToServer(CreativeBookEditsPayload.TYPE, CreativeBookEditsPayload.STREAM_CODEC, CreativeBookEditsPayload::handle);
         registrar.playToServer(
                 TakeLevelPayload.TYPE,
                 TakeLevelPayload.STREAM_CODEC,

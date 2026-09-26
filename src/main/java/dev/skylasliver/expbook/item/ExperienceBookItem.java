@@ -7,7 +7,10 @@ import dev.skylasliver.expbook.registry.ModComponents;
 import dev.skylasliver.expbook.registry.ModItems;
 import dev.skylasliver.expbook.registry.ModKeyMappings;
 import dev.skylasliver.expbook.util.BookLocator;
+import dev.skylasliver.expbook.util.BookIdentity;
+import dev.skylasliver.expbook.util.BookNumbers;
 import java.util.List;
+import java.util.UUID;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
@@ -57,15 +60,13 @@ public class ExperienceBookItem extends Item {
         // The item model's overrides chain keys on the vanilla custom_model_data
         // predicate, so the fill level has to be written there, not only into the
         // mod's own FILL_LEVEL component.
-        stack.set(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(fillLevel(contents)));
+        int fillLevel = fillLevel(contents);
+        stack.set(ModComponents.FILL_LEVEL.get(), fillLevel);
+        stack.set(DataComponents.CUSTOM_MODEL_DATA, new CustomModelData(fillLevel));
     }
 
     public static int storedPoints(ItemStack stack) {
         return contents(stack).storedPoints();
-    }
-
-    public static int capacity(ItemStack stack) {
-        return contents(stack).capacity();
     }
 
     /** Capacity still available for new points. */
@@ -95,6 +96,9 @@ public class ExperienceBookItem extends Item {
         if (level.isClientSide()) {
             return InteractionResultHolder.sidedSuccess(stack, true);
         }
+        if (player instanceof ServerPlayer serverPlayer) {
+            if (BookIdentity.ensureBound(serverPlayer, stack) == null) return InteractionResultHolder.fail(stack);
+        }
         store(level, player, stack);
         return InteractionResultHolder.success(stack);
     }
@@ -107,6 +111,9 @@ public class ExperienceBookItem extends Item {
         }
         if (context.getLevel().isClientSide()) {
             return InteractionResult.SUCCESS;
+        }
+        if (player instanceof ServerPlayer serverPlayer) {
+            if (BookIdentity.ensureBound(serverPlayer, context.getItemInHand()) == null) return InteractionResult.FAIL;
         }
         store(context.getLevel(), player, context.getItemInHand());
         return InteractionResult.SUCCESS;
@@ -159,6 +166,32 @@ public class ExperienceBookItem extends Item {
     }
 
     @Override
+    public void inventoryTick(ItemStack stack, Level level, net.minecraft.world.entity.Entity entity,
+            int slot, boolean selected) {
+        super.inventoryTick(stack, level, entity, slot, selected);
+        // Upgrade already-bound legacy stacks when they enter a player's inventory.
+        // Unused crafted/given books remain unbound until their first use.
+        if (level instanceof net.minecraft.server.level.ServerLevel server) {
+            if (!BookIdentity.validate(server, stack)) return;
+            if (entity.tickCount % 20 == 0) {
+                UUID id = stack.get(ModComponents.BOOK_ID.get());
+                if (id != null) BookNumbers.sync(server, stack, id);
+                if (entity instanceof ServerPlayer player) BookIdentity.recordIfBound(player, stack);
+            }
+        }
+    }
+
+    @Override
+    public boolean onEntityItemUpdate(ItemStack stack, net.minecraft.world.entity.item.ItemEntity entity) {
+        if (entity.level() instanceof net.minecraft.server.level.ServerLevel server
+                && !BookIdentity.validate(server, stack)) {
+            entity.discard();
+            return true;
+        }
+        return false;
+    }
+
+    @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         BookContents contents = contents(stack);
         int level = ExperienceMath.levelForPoints(contents.storedPoints());
@@ -170,6 +203,15 @@ public class ExperienceBookItem extends Item {
         tooltip.add(Component.translatable("tooltip.skylasliver_expbook.pages",
                         contents.pages().size(), BookContents.MAX_PAGES)
                 .withStyle(ChatFormatting.GRAY));
+        long bookNumber = stack.getOrDefault(ModComponents.BOOK_NUMBER.get(), 0L);
+        if (bookNumber > 0) {
+            tooltip.add(Component.translatable("gui.skylasliver_expbook.admin.id", Long.toString(bookNumber))
+                    .withStyle(ChatFormatting.DARK_GRAY));
+        }
+        String ownerName = stack.get(ModComponents.OWNER_NAME.get());
+        if (ownerName != null && !ownerName.isBlank()) {
+            tooltip.add(Component.translatable("gui.skylasliver_expbook.admin.owner", ownerName).withStyle(ChatFormatting.DARK_GRAY));
+        }
         tooltip.add(Component.translatable("tooltip.skylasliver_expbook.take_hint")
                 .withStyle(ChatFormatting.DARK_GRAY));
         tooltip.add(Component.translatable("tooltip.skylasliver_expbook.store_hint")

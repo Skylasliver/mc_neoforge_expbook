@@ -1,12 +1,9 @@
 package dev.skylasliver.expbook.menu;
 
 import dev.skylasliver.expbook.component.BookContents;
-import dev.skylasliver.expbook.item.ExperienceBookItem;
 import dev.skylasliver.expbook.item.PageItem;
 import dev.skylasliver.expbook.registry.ModMenus;
 import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.world.Container;
-import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -21,17 +18,15 @@ import net.minecraft.world.item.ItemStack;
 public class ExperienceBookMenu extends AbstractContainerMenu {
 
     private final PageContainer pages;
-    private final Container playerInventory;
 
     /** Client-side constructor: the book arrives from the open-menu payload. */
     public ExperienceBookMenu(int containerId, Inventory playerInventory, RegistryFriendlyByteBuf extraData) {
-        this(containerId, playerInventory, PlayerBookHolder.decode(extraData));
+        this(containerId, playerInventory, ItemStack.STREAM_CODEC.decode(extraData));
     }
 
     public ExperienceBookMenu(int containerId, Inventory playerInventory, ItemStack book) {
         super(ModMenus.EXPERIENCE_BOOK.get(), containerId);
         this.pages = new PageContainer(book);
-        this.playerInventory = playerInventory;
         addPageSlots();
         addPlayerSlots(playerInventory, 110);
     }
@@ -79,7 +74,10 @@ public class ExperienceBookMenu extends AbstractContainerMenu {
     public void clicked(int slotId, int button, ClickType clickType, Player player) {
         if (!player.level().isClientSide() && !stillValid(player)) return;
         if (slotId >= 0 && slotId < this.slots.size() && this.slots.get(slotId).getItem() == book()) return;
-        if (clickType == ClickType.SWAP && (button == 40 ? player.getOffhandItem() : player.getInventory().getItem(button)) == book()) return;
+        if (clickType == ClickType.SWAP) {
+            if ((button < 0 || button > 8) && button != 40) return;
+            if ((button == 40 ? player.getOffhandItem() : player.getInventory().getItem(button)) == book()) return;
+        }
         if (slotId >= 0 && slotId < BookContents.MAX_PAGES) {
             if (clickType == ClickType.QUICK_MOVE) {
                 // Shift-clicking a page pulls it back into the inventory, subject to the
@@ -90,16 +88,19 @@ public class ExperienceBookMenu extends AbstractContainerMenu {
                     if (!removed.isEmpty() && !player.getInventory().add(removed)) {
                         player.drop(removed, false);
                     }
+                    record(player);
                     broadcastChanges();
                 }
                 return;
             }
         }
         super.clicked(slotId, button, clickType, player);
+        record(player);
     }
 
     @Override
     public ItemStack quickMoveStack(Player player, int index) {
+        if (index < 0 || index >= slots.size() || !stillValid(player)) return ItemStack.EMPTY;
         Slot slot = this.slots.get(index);
         if (!slot.hasItem() || slot.getItem() == book() || !slot.mayPickup(player)) {
             return ItemStack.EMPTY;
@@ -122,27 +123,21 @@ public class ExperienceBookMenu extends AbstractContainerMenu {
         } else {
             slot.setChanged();
         }
+        record(player);
         return original;
+    }
+
+    private void record(Player player) {
+        if (player instanceof net.minecraft.server.level.ServerPlayer server)
+            dev.skylasliver.expbook.util.BookIdentity.recordIfBound(server, book());
     }
 
     @Override
     public boolean stillValid(Player player) {
-        return player.isAlive() && dev.skylasliver.expbook.util.BookLocator.held(player) == book();
+        return player.isAlive() && !book().isEmpty()
+                && (!(player instanceof net.minecraft.server.level.ServerPlayer server)
+                    || dev.skylasliver.expbook.util.BookIdentity.isUsable(server, book()))
+                && dev.skylasliver.expbook.util.BookLocator.held(player) == book();
     }
 
-    /**
-     * Marks the menu as full so the client cannot deposit into the twenty-seventh page.
-     */
-    public boolean isFull() {
-        return ExperienceBookItem.contents(this.pages.book()).pages().size() >= BookContents.MAX_PAGES;
-    }
-
-    private static final class PlayerBookHolder {
-        private PlayerBookHolder() {
-        }
-
-        static ItemStack decode(RegistryFriendlyByteBuf buffer) {
-            return ItemStack.STREAM_CODEC.decode(buffer);
-        }
-    }
 }

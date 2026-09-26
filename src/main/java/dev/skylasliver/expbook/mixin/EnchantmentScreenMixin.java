@@ -41,16 +41,18 @@ public abstract class EnchantmentScreenMixin {
         if (player == null) {
             return;
         }
-        int bookPoints = ExperienceBookItem.storedPoints(BookLocator.forEnchanting(player));
-        if (BookLocator.forEnchanting(player).isEmpty()) {
+        net.minecraft.world.item.ItemStack book = BookLocator.forEnchanting(player);
+        if (book.isEmpty()) {
             return;
         }
+        int bookPoints = ExperienceBookItem.storedPoints(book);
         this.expbook$savedTotal = player.totalExperience;
         this.expbook$savedLevel = player.experienceLevel;
         this.expbook$savedProgress = player.experienceProgress;
         this.expbook$escalated = true;
-        long merged = bookPoints;
-        player.experienceLevel = dev.skylasliver.expbook.ExperienceMath.levelForPoints(merged);
+        player.totalExperience = bookPoints;
+        player.experienceLevel = dev.skylasliver.expbook.ExperienceMath.levelForPoints(bookPoints);
+        player.experienceProgress = dev.skylasliver.expbook.ExperienceMath.progress(bookPoints);
     }
 
     @Inject(method = "render", at = @At("RETURN"))

@@ -1,7 +1,6 @@
 package dev.skylasliver.expbook.util;
 
 import dev.skylasliver.expbook.item.ExperienceBookItem;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -17,6 +16,7 @@ public final class BookLocator {
      * A player holding a book in each hand is resolved in favour of the main hand.
      */
     public static ItemStack held(Player player) {
+        validateHands(player);
         ItemStack main = player.getMainHandItem();
         if (main.getItem() instanceof ExperienceBookItem) {
             return main;
@@ -36,6 +36,7 @@ public final class BookLocator {
         if (!(entity instanceof Player player)) {
             return ItemStack.EMPTY;
         }
+        validateHands(player);
         ItemStack main = player.getMainHandItem();
         ItemStack off = player.getOffhandItem();
         boolean mainIsBook = main.getItem() instanceof ExperienceBookItem;
@@ -52,7 +53,10 @@ public final class BookLocator {
         return ItemStack.EMPTY;
     }
 
-    public static boolean holdsBook(Player player) {
-        return !held(player).isEmpty();
+    private static void validateHands(Player player) {
+        if (player instanceof net.minecraft.server.level.ServerPlayer server) {
+            BookIdentity.validate(server.serverLevel(), player.getMainHandItem());
+            BookIdentity.validate(server.serverLevel(), player.getOffhandItem());
+        }
     }
 }

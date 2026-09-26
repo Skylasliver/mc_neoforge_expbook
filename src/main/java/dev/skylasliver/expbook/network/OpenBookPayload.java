@@ -2,14 +2,12 @@ package dev.skylasliver.expbook.network;
 
 import dev.skylasliver.expbook.ExperienceBookMod;
 import dev.skylasliver.expbook.menu.ExperienceBookMenu;
-import dev.skylasliver.expbook.registry.ModItems;
 import dev.skylasliver.expbook.util.BookLocator;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -37,19 +35,14 @@ public record OpenBookPayload(boolean settings) implements CustomPacketPayload {
                 return;
             }
             ItemStack book = BookLocator.held(player);
-            if (book.isEmpty()) {
+            if (book.isEmpty() || dev.skylasliver.expbook.util.BookIdentity.ensureBound(player, book) == null) {
                 return;
             }
-            InteractionHand hand = player.getMainHandItem() == book
-                    ? InteractionHand.MAIN_HAND
-                    : InteractionHand.OFF_HAND;
             player.openMenu(new net.minecraft.world.SimpleMenuProvider(
                     (containerId, inventory, ignored) -> payload.settings()
                             ? new dev.skylasliver.expbook.menu.BookSettingsMenu(containerId, inventory, book)
                             : new ExperienceBookMenu(containerId, inventory, book),
-                    Component.translatable(payload.settings() ? "gui.skylasliver_expbook.settings" : "gui.skylasliver_expbook.title")), buffer -> {
-                ItemStack.STREAM_CODEC.encode(buffer, book);
-            });
+                    Component.translatable(payload.settings() ? "gui.skylasliver_expbook.settings" : "gui.skylasliver_expbook.title")), buffer -> ItemStack.STREAM_CODEC.encode(buffer, book));
         });
     }
 }

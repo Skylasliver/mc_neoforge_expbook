@@ -26,9 +26,12 @@ public abstract class AnvilMenuMixin {
         if (book.isEmpty()) {
             player.giveExperienceLevels(levels);
         } else if (!player.level().isClientSide() && !player.getAbilities().instabuild) {
+            if (!(player instanceof net.minecraft.server.level.ServerPlayer server)
+                    || dev.skylasliver.expbook.util.BookIdentity.ensureBound(server, book) == null) return;
             int points = ExperienceMath.totalPointsForLevel(Math.max(0, -levels));
             ExperienceBookItem.setContents(book, ExperienceBookItem.contents(book)
                     .withStoredPoints(Math.max(0, ExperienceBookItem.storedPoints(book) - points)));
+            dev.skylasliver.expbook.util.BookIdentity.recordIfBound(server, book);
         }
     }
 }

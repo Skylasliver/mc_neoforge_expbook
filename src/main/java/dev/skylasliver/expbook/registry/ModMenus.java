@@ -2,6 +2,7 @@ package dev.skylasliver.expbook.registry;
 
 import dev.skylasliver.expbook.ExperienceBookMod;
 import dev.skylasliver.expbook.menu.ExperienceBookMenu;
+import dev.skylasliver.expbook.menu.BookAdminMenu;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.inventory.MenuType;
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
@@ -21,6 +22,8 @@ public final class ModMenus {
     public static final DeferredHolder<MenuType<?>, MenuType<dev.skylasliver.expbook.menu.BookSettingsMenu>> BOOK_SETTINGS =
             MENUS.register("book_settings", () -> IMenuTypeExtension.create(
                     (id, inventory, data) -> new dev.skylasliver.expbook.menu.BookSettingsMenu(id, inventory, data)));
+    public static final DeferredHolder<MenuType<?>, MenuType<BookAdminMenu>> BOOK_ADMIN =
+            MENUS.register("book_admin", () -> IMenuTypeExtension.create(BookAdminMenu::new));
 
     private ModMenus() {
     }

@@ -6,10 +6,14 @@
   "mixins": [
     "EnchantmentMenuMixin",
     "AnvilMenuMixin",
-    "ExperienceOrbMixin"
+    "ExperienceOrbMixin",
+    "BookCloneMenuMixin",
+    "CreativeBookValidationMixin"
   ],
   "client": [
-    "EnchantmentScreenMixin"
+    "EnchantmentScreenMixin",
+    "CreativeInventoryPacketsMixin",
+    "CreativeScreenBatchMixin"
   ],
   "injectors": {
     "defaultRequire": 1

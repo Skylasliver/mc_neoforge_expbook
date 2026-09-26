@@ -2,6 +2,8 @@ package dev.skylasliver.expbook.item;
 
 import dev.skylasliver.expbook.ExperienceMath;
 import dev.skylasliver.expbook.component.BookContents;
+import dev.skylasliver.expbook.util.BookIdentity;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
@@ -22,10 +24,10 @@ public final class BookActions {
      * @return points actually transferred.
      */
     public static int takeOneLevel(Player player, ItemStack book) {
-        if (player.level().isClientSide()) {
+        if (!(player instanceof ServerPlayer server) || BookIdentity.ensureBound(server, book) == null) {
             return 0;
         }
-        int wanted = player.getXpNeededForNextLevel() - Math.min(player.getXpNeededForNextLevel() - 1, Math.round(player.experienceProgress * player.getXpNeededForNextLevel()));
+        int wanted = ExperienceMath.pointsToCompleteCurrentLevel(visiblePoints(player));
         int available = ExperienceBookItem.storedPoints(book);
         int taken = Math.min(wanted, available);
         if (taken <= 0) {
@@ -34,6 +36,7 @@ public final class BookActions {
         ExperienceBookItem.setContents(book, ExperienceBookItem.contents(book)
                 .withStoredPoints(available - taken));
         player.giveExperiencePoints(taken);
+        BookIdentity.recordIfBound(server, book);
         return taken;
     }
 
@@ -43,7 +46,7 @@ public final class BookActions {
      * @return points actually transferred.
      */
     public static int takeAll(Player player, ItemStack book) {
-        if (player.level().isClientSide()) {
+        if (!(player instanceof ServerPlayer server) || BookIdentity.ensureBound(server, book) == null) {
             return 0;
         }
         int available = ExperienceBookItem.storedPoints(book);
@@ -52,6 +55,7 @@ public final class BookActions {
         }
         ExperienceBookItem.setContents(book, ExperienceBookItem.contents(book).withStoredPoints(0));
         player.giveExperiencePoints(available);
+        BookIdentity.recordIfBound(server, book);
         return available;
     }
 
@@ -68,7 +72,7 @@ public final class BookActions {
      * @return points actually transferred.
      */
     public static int storeOneLevel(Player player, ItemStack book) {
-        if (player.level().isClientSide()) {
+        if (!(player instanceof ServerPlayer server) || BookIdentity.ensureBound(server, book) == null) {
             return 0;
         }
         int wanted;
@@ -78,7 +82,7 @@ public final class BookActions {
         } else {
             wanted = visiblePoints(player);
         }
-        return storePoints(player, book, wanted);
+        return storePoints(server, book, wanted);
     }
 
     /**
@@ -87,13 +91,13 @@ public final class BookActions {
      * @return points actually transferred.
      */
     public static int storeAll(Player player, ItemStack book) {
-        if (player.level().isClientSide()) {
+        if (!(player instanceof ServerPlayer server) || BookIdentity.ensureBound(server, book) == null) {
             return 0;
         }
-        return storePoints(player, book, visiblePoints(player));
+        return storePoints(server, book, visiblePoints(player));
     }
 
-    private static int storePoints(Player player, ItemStack book, int wanted) {
+    private static int storePoints(ServerPlayer player, ItemStack book, int wanted) {
         int space = ExperienceBookItem.freeSpace(book);
         int moved = Math.min(Math.min(wanted, space), visiblePoints(player));
         if (moved <= 0) {
@@ -102,13 +106,11 @@ public final class BookActions {
         BookContents contents = ExperienceBookItem.contents(book);
         ExperienceBookItem.setContents(book, contents.withStoredPoints(contents.storedPoints() + moved));
         removePlayerPoints(player, moved);
+        BookIdentity.recordIfBound(player, book);
         return moved;
     }
 
-    /**
-     * Removes raw points without the level-change side effects of
-     * {@code giveExperienceLevels(-n)}, so partial progress survives.
-     */
+    /** Current spendable XP, derived from the visible level and partial progress. */
     public static int visiblePoints(Player player) {
         return (int) Math.min(Integer.MAX_VALUE, (long) ExperienceMath.totalPointsForLevel(player.experienceLevel)
                 + Math.round(player.experienceProgress * player.getXpNeededForNextLevel()));

@@ -4,6 +4,7 @@ import dev.skylasliver.expbook.BookConfig;
 import dev.skylasliver.expbook.ExperienceMath;
 import dev.skylasliver.expbook.ExperienceBookMod;
 import dev.skylasliver.expbook.registry.ModComponents;
+import dev.skylasliver.expbook.util.BookIdentity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
@@ -27,12 +28,14 @@ public final class BookAutomation {
         int remaining = points;
         for (int i = 0; i < player.getInventory().getContainerSize() && remaining > 0; i++) {
             ItemStack book = player.getInventory().getItem(i);
-            if (!(book.getItem() instanceof ExperienceBookItem) || (flags(book) & 1) == 0) continue;
+            if (!(book.getItem() instanceof ExperienceBookItem) || !BookIdentity.validate(player.serverLevel(), book)
+                    || (flags(book) & 1) == 0) continue;
             int moved = Math.min(remaining, ExperienceBookItem.freeSpace(book));
-            if (moved > 0) {
+            if (moved > 0 && BookIdentity.ensureBound(player, book) != null) {
                 var contents = ExperienceBookItem.contents(book);
                 ExperienceBookItem.setContents(book, contents.withStoredPoints(contents.storedPoints() + moved));
                 remaining -= moved;
+                BookIdentity.recordIfBound(player, book);
             }
         }
         return remaining;
@@ -44,18 +47,19 @@ public final class BookAutomation {
         // Inventory includes main hand/hotbar, backpack, armor and offhand exactly once.
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack book = player.getInventory().getItem(i);
-            if (!(book.getItem() instanceof ExperienceBookItem)) continue;
+            if (!(book.getItem() instanceof ExperienceBookItem) || !BookIdentity.validate(player.serverLevel(), book)) continue;
             int enabled = flags(book) & BookConfig.allowedFlags();
             int available = ExperienceBookItem.storedPoints(book);
             int remaining = available;
-            int credit = book.getOrDefault(ModComponents.REPAIR_CREDIT.get(), 0);
+            int originalCredit = book.getOrDefault(ModComponents.REPAIR_CREDIT.get(), 0);
+            int credit = originalCredit;
             if ((enabled & 2) != 0 && (remaining > 0 || credit > 0)) {
                 var mending = player.registryAccess().registryOrThrow(Registries.ENCHANTMENT).getHolderOrThrow(Enchantments.MENDING);
                 for (int slot = 0; slot < player.getInventory().getContainerSize() && (remaining > 0 || credit > 0); slot++) {
                     ItemStack item = player.getInventory().getItem(slot);
                     if (!item.isDamaged() || item.getEnchantmentLevel(mending) <= 0) continue;
                     int repairPerPoint = EnchantmentHelper.modifyDurabilityToRepairFromXp(player.serverLevel(), item, 1);
-                    if (repairPerPoint <= 0) continue;
+                    if (repairPerPoint <= 0 || BookIdentity.ensureBound(player, book) == null) continue;
                     var payment = dev.skylasliver.expbook.RepairBudget.spend(
                             item.getDamageValue(), remaining, credit, repairPerPoint);
                     credit = payment.credit();
@@ -65,20 +69,21 @@ public final class BookAutomation {
             }
             if ((enabled & 4) != 0 && remaining > 0 && player.experienceLevel < target(book)) {
                 // totalExperience is a lifetime counter after enchanting; use the visible level/bar.
-                int current = ExperienceMath.totalPointsForLevel(player.experienceLevel)
-                        + Math.round(player.experienceProgress * player.getXpNeededForNextLevel());
+                int current = BookActions.visiblePoints(player);
                 int moved = Math.min(remaining, Math.max(0, ExperienceMath.totalPointsForLevel(target(book)) - current));
-                if (moved > 0) {
+                if (moved > 0 && BookIdentity.ensureBound(player, book) != null) {
                     player.giveExperiencePoints(moved);
                     remaining -= moved;
                 }
             }
-            if (credit != book.getOrDefault(ModComponents.REPAIR_CREDIT.get(), 0)) {
+            boolean changed = credit != originalCredit || remaining != available;
+            if (credit != originalCredit) {
                 book.set(ModComponents.REPAIR_CREDIT.get(), credit);
             }
             if (remaining != available) {
                 ExperienceBookItem.setContents(book, ExperienceBookItem.contents(book).withStoredPoints(remaining));
             }
+            if (changed) BookIdentity.recordIfBound(player, book);
         }
     }
     private BookAutomation() {}

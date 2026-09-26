@@ -6,6 +6,8 @@ import dev.skylasliver.expbook.registry.ModMenus;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
+import dev.skylasliver.expbook.command.ExperienceBookCommands;
+import net.neoforged.neoforge.common.NeoForge;
 
 @Mod(ExperienceBookMod.MOD_ID)
 public final class ExperienceBookMod {
@@ -17,7 +19,7 @@ public final class ExperienceBookMod {
         ModComponents.COMPONENTS.register(modBus);
         ModMenus.MENUS.register(modBus);
         ModItems.CREATIVE_TABS.register(modBus);
-        modBus.addListener(ModItems::addToCreativeTab);
+        NeoForge.EVENT_BUS.register(ExperienceBookCommands.class);
     }
 
     public static ResourceLocation id(String path) {

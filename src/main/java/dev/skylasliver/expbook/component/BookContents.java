@@ -4,7 +4,6 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import dev.skylasliver.expbook.page.PageTier;
 import io.netty.buffer.ByteBuf;
-import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -50,10 +49,6 @@ public record BookContents(int storedPoints, List<PageTier> pages) {
         return total;
     }
 
-    public boolean isEmpty() {
-        return this.storedPoints == 0 && this.pages.isEmpty();
-    }
-
     public BookContents withStoredPoints(int points) {
         return new BookContents(points, this.pages);
     }
@@ -62,29 +57,4 @@ public record BookContents(int storedPoints, List<PageTier> pages) {
         return new BookContents(this.storedPoints, newPages);
     }
 
-    public BookContents withPageAdded(PageTier tier) {
-        if (this.pages.size() >= MAX_PAGES) {
-            return this;
-        }
-        List<PageTier> next = new ArrayList<>(this.pages);
-        next.add(tier);
-        return withPages(next);
-    }
-
-    /**
-     * @return contents with the page at {@code index} removed, or {@code null} when the
-     *         removal would leave stored points above the resulting capacity.
-     */
-    public BookContents withPageRemoved(int index) {
-        if (index < 0 || index >= this.pages.size()) {
-            return null;
-        }
-        List<PageTier> next = new ArrayList<>(this.pages);
-        next.remove(index);
-        BookContents candidate = withPages(next);
-        if (candidate.capacity() < candidate.storedPoints()) {
-            return null;
-        }
-        return candidate;
-    }
 }

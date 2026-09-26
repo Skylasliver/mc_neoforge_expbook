@@ -4,6 +4,25 @@ public final class RegressionChecks {
     private static void check(boolean value, String message) {
         if (!value) throw new AssertionError(message);
     }
+    private static void checkBookNumbers() {
+        var a = new java.util.UUID(0, 1);
+        var b = new java.util.UUID(0, 2);
+        var replacement = new java.util.UUID(0, 3);
+        var sequence = new dev.skylasliver.expbook.util.BookNumberSequence(java.util.Map.of(), 0);
+        check(sequence.numberFor(a) == 1 && sequence.numberFor(b) == 2, "IDs start at one and increment");
+        check(sequence.numberFor(a) == 1 && sequence.lastNumber() == 2, "reopening does not consume an ID");
+        var reloaded = new dev.skylasliver.expbook.util.BookNumberSequence(sequence.snapshot(), sequence.lastNumber());
+        check(reloaded.numberFor(a) == 1 && reloaded.numberFor(b) == 2, "existing IDs survive reload");
+        check(reloaded.numberFor(replacement) == 3, "replacement gets the next ID after reload");
+        check(reloaded.numberFor(a) == 1, "old ID remains reserved after replacement");
+        var staleCounter = new dev.skylasliver.expbook.util.BookNumberSequence(java.util.Map.of(a, 99L), 0);
+        check(staleCounter.numberFor(b) == 100, "restored counter cannot collide with existing IDs");
+        var reserved = new dev.skylasliver.expbook.util.BookNumberSequence(java.util.Map.of(), 500);
+        check(reserved.numberFor(a) == 501, "high-water mark is never reused");
+        var large = new dev.skylasliver.expbook.util.BookNumberSequence(java.util.Map.of(a, (long) Integer.MAX_VALUE), 0);
+        check(large.numberFor(b) == 2147483648L, "IDs do not wrap at integer limit");
+    }
+
     public static void main(String[] args) {
         check(ExperienceMath.totalPointsForLevel(30) == 1395, "30-level cost");
         check(ExperienceMath.levelForPoints(1394) == 29, "insufficient XP boundary");
@@ -31,6 +50,7 @@ public final class RegressionChecks {
         check(empty.repaired() == 0 && empty.charged() == 0, "no free repair");
         RepairBudget large = RepairBudget.spend(Integer.MAX_VALUE, Integer.MAX_VALUE, 0, 2);
         check(large.repaired() == Integer.MAX_VALUE && large.charged() == 1073741824, "overflow");
-        System.out.println("Experience and repair regression checks passed.");
+        checkBookNumbers();
+        System.out.println("Experience, repair and book numbering regression checks passed.");
     }
 }
