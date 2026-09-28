@@ -39,7 +39,7 @@ neoForge {
     }
 }
 
-// 仅在执行 GameTest 时编译并加载集成测试，正式构建不包含测试类。
+// Lifecycle integration checks are compiled only for the managed GameTest run.
 if (gradle.startParameter.taskNames.any { it.toLowerCase(java.util.Locale.ROOT).contains('gametest') }) {
     sourceSets.main.java.srcDir 'src/gametest/java'
     sourceSets.main.resources.srcDir 'src/gametest/resources'
@@ -54,7 +54,7 @@ sourceSets {
 tasks.register('regressionChecks', JavaExec) {
     dependsOn regressionClasses
     classpath = sourceSets.regression.runtimeClasspath
-    mainClass = 'dev.skylasliver.expbook.RegressionChecks'
+    mainClass = 'dev.skylasliver.skylasliver_expbook.RegressionChecks'
 }
 tasks.named('check') { dependsOn 'regressionChecks' }
 
@@ -70,3 +70,16 @@ tasks.configureEach {
     }
 }
 
+dependencies {
+
+
+
+// MODMIND DEPENDENCIES START
+    implementation files('libs/skylasliver/jei-1.21.1-neoforge-19.57.0.449.jar')
+    implementation files('libs/skylasliver/jecharacters-1.21.1-neoforge-4.5.29.jar')
+    implementation files('libs/skylasliver/IMBlocker-5.6.1-neoforge+1.20.6-1.21.8.jar')
+    implementation files('libs/skylasliver/iconexporter-1.21.1-neoforge-1.4.2-220.jar')
+    implementation files('libs/skylasliver/mezz_config-1.21.1-neoforge-0.6.3.jar')
+    implementation files('libs/skylasliver/cyclopscore-1.21.1-neoforge-1.30.0.jar')
+// MODMIND DEPENDENCIES END
+}

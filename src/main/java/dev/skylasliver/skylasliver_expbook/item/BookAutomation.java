@@ -1,0 +1,90 @@
+package dev.skylasliver.skylasliver_expbook.item;
+
+import dev.skylasliver.skylasliver_expbook.BookConfig;
+import dev.skylasliver.skylasliver_expbook.ExperienceMath;
+import dev.skylasliver.skylasliver_expbook.ModMindEntry;
+import dev.skylasliver.skylasliver_expbook.registry.ModComponents;
+import dev.skylasliver.skylasliver_expbook.util.BookIdentity;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+
+@EventBusSubscriber(modid = ModMindEntry.MOD_ID)
+public final class BookAutomation {
+    public static int flags(ItemStack book) {
+        return book.getOrDefault(ModComponents.AUTOMATION.get(), 0) & 7;
+    }
+    public static int target(ItemStack book) {
+        return Math.clamp(book.getOrDefault(ModComponents.TARGET_LEVEL.get(), BookConfig.TARGET.get()), 0, BookConfig.MAX_TARGET.get());
+    }
+    /** Called only while processing an actual orb pickup, never on XP withdrawals or commands. */
+    public static int collect(ServerPlayer player, int points) {
+        if (!BookConfig.COLLECT.get() || points <= 0 || player.isSpectator()) return points;
+        int remaining = points;
+        for (int i = 0; i < player.getInventory().getContainerSize() && remaining > 0; i++) {
+            ItemStack book = player.getInventory().getItem(i);
+            if (!(book.getItem() instanceof ExperienceBookItem) || !BookIdentity.validate(player.serverLevel(), book)
+                    || (flags(book) & 1) == 0) continue;
+            int moved = Math.min(remaining, ExperienceBookItem.freeSpace(book));
+            if (moved > 0 && BookIdentity.ensureBound(player, book) != null) {
+                var contents = ExperienceBookItem.contents(book);
+                ExperienceBookItem.setContents(book, contents.withStoredPoints(contents.storedPoints() + moved));
+                remaining -= moved;
+                BookIdentity.recordIfBound(player, book);
+            }
+        }
+        return remaining;
+    }
+    @SubscribeEvent
+    public static void tick(PlayerTickEvent.Post event) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || !player.isAlive()
+                || player.isSpectator() || player.tickCount % 20 != 0) return;
+        // Inventory includes main hand/hotbar, backpack, armor and offhand exactly once.
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack book = player.getInventory().getItem(i);
+            if (!(book.getItem() instanceof ExperienceBookItem) || !BookIdentity.validate(player.serverLevel(), book)) continue;
+            int enabled = flags(book) & BookConfig.allowedFlags();
+            int available = ExperienceBookItem.storedPoints(book);
+            int remaining = available;
+            int originalCredit = book.getOrDefault(ModComponents.REPAIR_CREDIT.get(), 0);
+            int credit = originalCredit;
+            if ((enabled & 2) != 0 && (remaining > 0 || credit > 0)) {
+                var mending = player.registryAccess().registryOrThrow(Registries.ENCHANTMENT).getHolderOrThrow(Enchantments.MENDING);
+                for (int slot = 0; slot < player.getInventory().getContainerSize() && (remaining > 0 || credit > 0); slot++) {
+                    ItemStack item = player.getInventory().getItem(slot);
+                    if (!item.isDamaged() || item.getEnchantmentLevel(mending) <= 0) continue;
+                    int repairPerPoint = EnchantmentHelper.modifyDurabilityToRepairFromXp(player.serverLevel(), item, 1);
+                    if (repairPerPoint <= 0 || BookIdentity.ensureBound(player, book) == null) continue;
+                    var payment = dev.skylasliver.skylasliver_expbook.RepairBudget.spend(
+                            item.getDamageValue(), remaining, credit, repairPerPoint);
+                    credit = payment.credit();
+                    item.setDamageValue(item.getDamageValue() - payment.repaired());
+                    remaining -= payment.charged();
+                }
+            }
+            if ((enabled & 4) != 0 && remaining > 0 && player.experienceLevel < target(book)) {
+                // totalExperience is a lifetime counter after enchanting; use the visible level/bar.
+                int current = BookActions.visiblePoints(player);
+                int moved = Math.min(remaining, Math.max(0, ExperienceMath.totalPointsForLevel(target(book)) - current));
+                if (moved > 0 && BookIdentity.ensureBound(player, book) != null) {
+                    player.giveExperiencePoints(moved);
+                    remaining -= moved;
+                }
+            }
+            boolean changed = credit != originalCredit || remaining != available;
+            if (credit != originalCredit) {
+                book.set(ModComponents.REPAIR_CREDIT.get(), credit);
+            }
+            if (remaining != available) {
+                ExperienceBookItem.setContents(book, ExperienceBookItem.contents(book).withStoredPoints(remaining));
+            }
+            if (changed) BookIdentity.recordIfBound(player, book);
+        }
+    }
+    private BookAutomation() {}
+}
